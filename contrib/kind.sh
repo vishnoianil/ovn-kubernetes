@@ -4,14 +4,14 @@ set -euxo pipefail
 
 K8S_VERSION=${K8S_VERSION:-v1.16.4}
 KIND_INSTALL_INGRESS=${KIND_INSTALL_INGRESS:-false}
-KIND_HA=${KIND_HA:-false}
+KIND_HA=${KIND_HA:-true}
 if [ "$KIND_HA" == true ]; then
   DEFAULT_KIND_CONFIG=./kind-ha.yaml
 else
   DEFAULT_KIND_CONFIG=./kind.yaml
 fi
 KIND_CONFIG=${KIND_CONFIG:-$DEFAULT_KIND_CONFIG}
-KIND_REMOVE_TAINT=${KIND_REMOVE_TAINT:-true}
+KIND_REMOVE_TAINT=${KIND_REMOVE_TAINT:-false}
 
 # Detect IP to use as API server
 API_IP=$(ip -4 addr | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | grep -v "127.0.0.1" | head -n 1)
@@ -24,7 +24,7 @@ sed -i "s/apiServerAddress.*/apiServerAddress: ${API_IP}/" ${KIND_CONFIG}
 
 # Create KIND cluster
 CLUSTER_NAME=${CLUSTER_NAME:-ovn}
-kind create cluster --name ${CLUSTER_NAME} --kubeconfig ${HOME}/admin.conf --image kindest/node:${K8S_VERSION} --config=${KIND_CONFIG}
+kind -v 256 create cluster --name ${CLUSTER_NAME} --kubeconfig ${HOME}/admin.conf --image kindest/node:${K8S_VERSION} --config=${KIND_CONFIG}
 export KUBECONFIG=${HOME}/admin.conf
 mkdir -p /tmp/kind
 sudo chmod 777 /tmp/kind
@@ -47,10 +47,10 @@ popd
 pushd ../dist/images
 sudo cp -f ../../go-controller/_output/go/bin/* .
 echo "ref: $(git rev-parse  --symbolic-full-name HEAD)  commit: $(git rev-parse  HEAD)" > git_info
-docker build -t ovn-daemonset-f:dev -f Dockerfile.fedora .
-./daemonset.sh --image=docker.io/library/ovn-daemonset-f:dev --net-cidr=10.244.0.0/16 --svc-cidr=10.96.0.0/12 --gateway-mode="local" --k8s-apiserver=https://${API_IP}:11337 --kind --master-loglevel=5
+#docker build --build-arg KERNEL_VERSION="5.5.11-200.fc31.x86_64" -t ovn-kube-f-dev:latest -f Dockerfile.fedora.dev . 
+./daemonset.sh --image=avishnoi/ovn-kube-f-dev:latest --net-cidr=10.244.0.0/16 --svc-cidr=10.96.0.0/12 --gateway-mode="local" --k8s-apiserver=https://${API_IP}:11337 --kind --master-loglevel=5
 popd
-kind load docker-image ovn-daemonset-f:dev --name ${CLUSTER_NAME}
+kind load docker-image --name ${CLUSTER_NAME} avishnoi/ovn-kube-f-dev:latest
 pushd ../dist/yaml
 kubectl create -f ovn-setup.yaml
 CONTROL_NODES=$(docker ps -f name=ovn-control | grep -v NAMES | awk '{ print $NF }')
