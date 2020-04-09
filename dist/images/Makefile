@@ -42,7 +42,7 @@ fedora-dev: bld
 	# To build (OVN Datapath)  with specific kernel version, please override KERNEL_VERSION.
 	# By default it will build with the host machine's kernel version.
 
-	docker build --build-arg KERNEL_VERSION=`uname -r` -t ovn-kube-f-dev -f Dockerfile.fedora.dev .
+	docker build --build-arg KERNEL_VERSION="5.3.7-301.fc31.x86_64" -t ovn-kube-f-dev -f Dockerfile.fedora.dev .
 	# docker login -u ovnkube docker.io/ovnkube
 	# docker push docker.io/ovnkube/ovn-daemonset-f:latest
 	./daemonset.sh --image=docker.io/ovnkube/ovn-daemonset-f:latest \
